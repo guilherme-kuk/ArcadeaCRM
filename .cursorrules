@@ -1,0 +1,33 @@
+# Project Context
+
+Building a CRM application with .NET 8 and Blazor Server.
+Following DDD principles with Repository and Service layers.
+Database: SQL Server with EF Core.
+
+# Architecture
+
+- CrmApp.Domain: Entities only
+- CrmApp.Infrastructure: DbContext + Repositories
+- CrmApp.Application: Services with business logic
+- CrmApp.Web: Blazor Server frontend
+
+# Code Style
+
+- Use C# 12 features
+- Use primary constructors where appropriate
+- Use file-scoped namespaces
+- Async/await for all database operations
+- No comments unless complex logic
+- Portuguese variable names are NOT allowed
+
+# Patterns
+
+- Repository pattern for data access
+- Dependency injection for all layers
+- Interface-based design (IRepository, IService)
+
+# Database
+
+- SQL Server LocalDB
+- EF Core 8 with migrations
+- Connection string name: "DefaultConnection"

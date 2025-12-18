@@ -1,0 +1,355 @@
+@page "/"
+@page "/accounts"
+@rendermode InteractiveServer
+@inject IAccountService AccountService
+
+<PageTitle>CRM - Accounts</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2 mb-0">
+            <i class="bi bi-people-fill me-2"></i>Customer Accounts
+        </h1>
+        <button class="btn btn-primary" @onclick="ShowAddForm" disabled="@isEditing">
+            <i class="bi bi-plus-lg me-1"></i>Add New Account
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(alertMessage))
+    {
+        <div class="alert @alertClass alert-dismissible fade show" role="alert">
+            @alertMessage
+            <button type="button" class="btn-close" @onclick="ClearAlert"></button>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="d-flex justify-content-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th style="width: 60px;">#</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Location</th>
+                                <th>Created</th>
+                                <th style="width: 150px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (showAddRow)
+                            {
+                                <tr class="table-success">
+                                    <td colspan="7">
+                                        <AccountForm Account="newAccount" 
+                                                     OnSave="CreateAccount" 
+                                                     OnCancel="CancelAdd"
+                                                     IsNew="true" />
+                                    </td>
+                                </tr>
+                            }
+                            @if (accounts?.Any() == true)
+                            {
+                                var rowNumber = 0;
+                                @foreach (var account in accounts)
+                                {
+                                    rowNumber++;
+                                    @if (editingAccountId == account.Id)
+                                    {
+                                        <tr class="table-warning">
+                                            <td colspan="7">
+                                                <AccountForm Account="editingAccount!" 
+                                                             OnSave="UpdateAccount" 
+                                                             OnCancel="CancelEdit"
+                                                             IsNew="false" />
+                                            </td>
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        <tr>
+                                            <td class="fw-bold text-muted">@rowNumber</td>
+                                            <td>
+                                                <span class="fw-semibold">@account.FullName</span>
+                                            </td>
+                                            <td>
+                                                <a href="mailto:@account.Email" class="text-decoration-none">
+                                                    @account.Email
+                                                </a>
+                                            </td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(account.PhoneNumber))
+                                                {
+                                                    <span>@FormatPhoneNumber(account.PhoneNumber)</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @{
+                                                    var location = GetLocationDisplay(account);
+                                                }
+                                                @if (!string.IsNullOrEmpty(location))
+                                                {
+                                                    <small>@location</small>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">@account.DateCreated.ToString("MMM dd, yyyy")</small>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" 
+                                                            @onclick="() => StartEdit(account)"
+                                                            disabled="@isEditing"
+                                                            title="Edit">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" 
+                                                            @onclick="() => DeleteAccount(account)"
+                                                            disabled="@isEditing"
+                                                            title="Delete">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            }
+                            else if (!showAddRow)
+                            {
+                                <tr>
+                                    <td colspan="7" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                            <p class="mb-0">No accounts found. Click "Add New Account" to get started.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @if (accounts?.Any() == true)
+            {
+                <div class="card-footer bg-light">
+                    <small class="text-muted">Total: @accounts.Count() account(s)</small>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (showDeleteConfirm)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Confirm Delete
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CancelDelete"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the account for <strong>@accountToDelete?.FullName</strong>?</p>
+                    <p class="text-muted mb-0">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">
+                        <i class="bi bi-trash me-1"></i>Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private IEnumerable<Account>? accounts;
+    private Account newAccount = new();
+    private Account? editingAccount;
+    private int? editingAccountId;
+    private bool showAddRow;
+    private bool isLoading = true;
+    private string? alertMessage;
+    private string alertClass = "alert-success";
+    private bool showDeleteConfirm;
+    private Account? accountToDelete;
+
+    private bool isEditing => showAddRow || editingAccountId.HasValue;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAccounts();
+    }
+
+    private async Task LoadAccounts()
+    {
+        isLoading = true;
+        accounts = await AccountService.GetAllAccountsAsync();
+        isLoading = false;
+    }
+
+    private void ShowAddForm()
+    {
+        newAccount = new Account();
+        showAddRow = true;
+        ClearAlert();
+    }
+
+    private void CancelAdd()
+    {
+        showAddRow = false;
+        newAccount = new Account();
+    }
+
+    private async Task CreateAccount()
+    {
+        var result = await AccountService.CreateAccountAsync(newAccount);
+        
+        if (result.Success)
+        {
+            ShowAlert("Account created successfully!", true);
+            showAddRow = false;
+            newAccount = new Account();
+            await LoadAccounts();
+        }
+        else
+        {
+            ShowAlert(result.Error ?? "Failed to create account.", false);
+        }
+    }
+
+    private void StartEdit(Account account)
+    {
+        editingAccountId = account.Id;
+        editingAccount = new Account
+        {
+            Id = account.Id,
+            FirstName = account.FirstName,
+            LastName = account.LastName,
+            Email = account.Email,
+            PhoneNumber = account.PhoneNumber,
+            Address = account.Address,
+            City = account.City,
+            State = account.State,
+            Country = account.Country,
+            DateCreated = account.DateCreated
+        };
+        ClearAlert();
+    }
+
+    private void CancelEdit()
+    {
+        editingAccountId = null;
+        editingAccount = null;
+    }
+
+    private async Task UpdateAccount()
+    {
+        if (editingAccount is null) return;
+
+        var result = await AccountService.UpdateAccountAsync(editingAccount);
+        
+        if (result.Success)
+        {
+            ShowAlert("Account updated successfully!", true);
+            editingAccountId = null;
+            editingAccount = null;
+            await LoadAccounts();
+        }
+        else
+        {
+            ShowAlert(result.Error ?? "Failed to update account.", false);
+        }
+    }
+
+    private void DeleteAccount(Account account)
+    {
+        accountToDelete = account;
+        showDeleteConfirm = true;
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteConfirm = false;
+        accountToDelete = null;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (accountToDelete is null) return;
+
+        var result = await AccountService.DeleteAccountAsync(accountToDelete.Id);
+        showDeleteConfirm = false;
+        
+        if (result.Success)
+        {
+            ShowAlert("Account deleted successfully!", true);
+            await LoadAccounts();
+        }
+        else
+        {
+            ShowAlert(result.Error ?? "Failed to delete account.", false);
+        }
+        
+        accountToDelete = null;
+    }
+
+    private void ShowAlert(string message, bool isSuccess)
+    {
+        alertMessage = message;
+        alertClass = isSuccess ? "alert-success" : "alert-danger";
+    }
+
+    private void ClearAlert()
+    {
+        alertMessage = null;
+    }
+
+    private string GetLocationDisplay(Account account)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(account.City)) parts.Add(account.City);
+        if (!string.IsNullOrEmpty(account.State)) parts.Add(account.State);
+        if (!string.IsNullOrEmpty(account.Country)) parts.Add(account.Country);
+        return string.Join(", ", parts);
+    }
+
+    private string FormatPhoneNumber(string? phone)
+    {
+        if (string.IsNullOrEmpty(phone)) return string.Empty;
+        
+        var digits = new string(phone.Where(char.IsDigit).ToArray());
+        
+        if (digits.Length == 11)
+            return $"({digits[..2]}) {digits[2..7]}-{digits[7..]}";
+        if (digits.Length == 10)
+            return $"({digits[..2]}) {digits[2..6]}-{digits[6..]}";
+        
+        return phone;
+    }
+}
+

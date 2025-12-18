@@ -1,0 +1,130 @@
+@using System.ComponentModel.DataAnnotations
+
+<EditForm Model="Account" OnValidSubmit="HandleValidSubmit" class="p-3">
+    <DataAnnotationsValidator />
+    
+    <div class="row g-3">
+        <div class="col-md-6 col-lg-3">
+            <label class="form-label fw-semibold">
+                First Name <span class="text-danger">*</span>
+            </label>
+            <InputText @bind-Value="Account.FirstName" class="form-control form-control-sm" placeholder="First name" />
+            <ValidationMessage For="@(() => Account.FirstName)" class="text-danger small" />
+        </div>
+        
+        <div class="col-md-6 col-lg-3">
+            <label class="form-label fw-semibold">
+                Last Name <span class="text-danger">*</span>
+            </label>
+            <InputText @bind-Value="Account.LastName" class="form-control form-control-sm" placeholder="Last name" />
+            <ValidationMessage For="@(() => Account.LastName)" class="text-danger small" />
+        </div>
+        
+        <div class="col-md-6 col-lg-3">
+            <label class="form-label fw-semibold">
+                Email <span class="text-danger">*</span>
+            </label>
+            <InputText @bind-Value="Account.Email" class="form-control form-control-sm" placeholder="email@example.com" type="email" />
+            <ValidationMessage For="@(() => Account.Email)" class="text-danger small" />
+        </div>
+        
+        <div class="col-md-6 col-lg-3">
+            <label class="form-label fw-semibold">Phone</label>
+            <InputText @bind-Value="Account.PhoneNumber" 
+                       class="form-control form-control-sm" 
+                       placeholder="(00) 00000-0000"
+                       maxlength="15"
+                       @oninput="HandlePhoneInput" />
+            <ValidationMessage For="@(() => Account.PhoneNumber)" class="text-danger small" />
+            <small class="text-muted">Fixo ou celular BR</small>
+        </div>
+        
+        <div class="col-md-6 col-lg-4">
+            <label class="form-label fw-semibold">Address</label>
+            <InputText @bind-Value="Account.Address" class="form-control form-control-sm" placeholder="Street address" />
+        </div>
+        
+        <div class="col-md-6 col-lg-2">
+            <label class="form-label fw-semibold">City</label>
+            <InputText @bind-Value="Account.City" class="form-control form-control-sm" placeholder="City" />
+        </div>
+        
+        <div class="col-md-6 col-lg-2">
+            <label class="form-label fw-semibold">State</label>
+            <InputText @bind-Value="Account.State" class="form-control form-control-sm" placeholder="State" />
+        </div>
+        
+        <div class="col-md-6 col-lg-2">
+            <label class="form-label fw-semibold">Country</label>
+            <InputText @bind-Value="Account.Country" class="form-control form-control-sm" placeholder="Country" />
+        </div>
+        
+        <div class="col-lg-2 d-flex align-items-end gap-2">
+            <button type="submit" class="btn btn-success btn-sm flex-grow-1">
+                <i class="bi bi-check-lg me-1"></i>@(IsNew ? "Create" : "Save")
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" @onclick="OnCancel">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter, EditorRequired]
+    public Account Account { get; set; } = new();
+
+    [Parameter, EditorRequired]
+    public EventCallback OnSave { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public bool IsNew { get; set; }
+
+    private async Task HandleValidSubmit()
+    {
+        await OnSave.InvokeAsync();
+    }
+
+    private void HandlePhoneInput(ChangeEventArgs e)
+    {
+        var input = e.Value?.ToString() ?? string.Empty;
+        var digits = new string(input.Where(char.IsDigit).ToArray());
+        
+        if (digits.Length > 11)
+            digits = digits[..11];
+
+        if (digits.Length >= 2)
+        {
+            var formatted = $"({digits[..2]})";
+            if (digits.Length > 2)
+            {
+                var remaining = digits[2..];
+                var isCellphone = remaining.Length > 8 || (remaining.Length >= 1 && remaining[0] == '9');
+                
+                if (isCellphone)
+                {
+                    if (remaining.Length <= 5)
+                        formatted += $" {remaining}";
+                    else
+                        formatted += $" {remaining[..5]}-{remaining[5..]}";
+                }
+                else
+                {
+                    if (remaining.Length <= 4)
+                        formatted += $" {remaining}";
+                    else
+                        formatted += $" {remaining[..4]}-{remaining[4..]}";
+                }
+            }
+            Account.PhoneNumber = formatted;
+        }
+        else
+        {
+            Account.PhoneNumber = digits;
+        }
+    }
+}
+
